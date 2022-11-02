@@ -560,4 +560,4 @@ def finding_duplicates(estimated_PTs, cov, sil, R, f_sampling):
     print("\n\tUnique Pulse Trains: ", len(mu_indexes), "\n")
     print("\n\tPossible Remained Duplicated MUs: ", possible_dup_MU, "\n")
 
-    return mu_indexes, estimated_PTs[mu_indexes, :], possible_dup_MU, roa_matrix
+    return mu_indexes, estimated_PTs, possible_dup_MU, roa_matrix
