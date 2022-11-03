@@ -22,6 +22,8 @@ The presenters:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MateusASchneiderCastilhos/EMG_Crosstalk_Decomposition_Workshop/blob/main/EMG_Crosstalk_Decomposition_Workshop.ipynb) Open this notebook by signing in to your Google account to open it on Google Colab.
 
+[![Open In Colab](https://colab.research.google.com/github/MateusASchneiderCastilhos/EMG_Crosstalk_Decomposition_Workshop/blob/main/Decomposition_Panel.ipynb) To open the Decomposition Panel lauch this notebook.
+
 ## References
 
 COMON, Pierre. Independent component analysis, A new concept? Signal Processing, v. 36, n. 3, p. 287–314, 1994. DOI: [10.1016/0165-1684(94)90029-9](https://doi.org/10.1016/0165-1684(94)90029-9).
