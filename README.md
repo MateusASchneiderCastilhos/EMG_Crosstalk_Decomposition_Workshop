@@ -42,6 +42,10 @@ HYVÄRINEN, Aapo. New approximations of differential entropy for independent com
 
 HYVÄRINEN, Aapo. Fast and robust fixed-point algorithms for independent component analysis. IEEE Transactions on Neural Networks, v. 10, n. 3, p. 626–634, 1999. DOI: [10.1109/72.761722](https://doi.org/10.1109/72.761722).
 
-HYVÄRINEN, Aapo; KARHUNEN, Juha; OJA, Erkki. Independent Component Analysis. First ed. New York: John Wiley & Sons, 2001. 
+HYVÄRINEN, Aapo; KARHUNEN, Juha; OJA, Erkki. Independent Component Analysis. First ed. New York: John Wiley & Sons, 2001.
+
+HYVÄRINEN, Aapo; OJA, Erkki. A Fast Fixed-Point Algorithm for Independent Component Analysis. Neural Computation, v. 9, p. 1483–1492, 1997. DOI: [10.1109/ICICIP.2010.5564273](https://doi.org/10.1109/ICICIP.2010.5564273).
+
+HYVÄRINEN, Aapo; OJA, Erkki. Independent component analysis: algorithms and applications. Neural Networks, v. 13, p. 411–430, 2000. DOI: [10.7819/rbgn.v19i63.1905](https://doi.org/10.7819/rbgn.v19i63.1905).
 
 NEGRO, Francesco; MUCELI, Silvia; CASTRONOVO, Anna Margherita; HOLOBAR, Ales; FARINA, Dario. Multi-channel intramuscular and surface EMG decomposition by convolutive blind source separation. Journal of Neural Engineering, v. 13, n. 2, p. 026027, 2016. DOI: [10.1088/1741-2560/13/2/026027](https://doi.org/10.1088/1741-2560/13/2/026027).
