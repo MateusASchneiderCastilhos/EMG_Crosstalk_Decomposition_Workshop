@@ -396,16 +396,6 @@ def finding_duplicates(estimated_PTs, cov, sil, R, f_sampling):
 
     mu_indexes = np.delete(mu_indexes, np.argwhere(cov[mu_indexes] == 0).reshape(-1))
 
-    interval_beg = len(mu_indexes) * 0.125
-    interval_beg = int(interval_beg) if (interval_beg - int(interval_beg) < 0.5) else (int(interval_beg) + 1)
-    interval_end = len(mu_indexes) * 0.875
-    interval_end = int(interval_end) if (interval_end - int(interval_end) < 0.5) else (int(interval_end) + 1)
-    mean_interval = n_spikes[mu_indexes[interval_beg:interval_end]].mean()
-
-    mu_indexes = np.delete(mu_indexes, np.argwhere(n_spikes[mu_indexes] <= 0.05 * mean_interval).reshape(-1))
-
-    print("\n\tPulse Trains considered outliers (removed): ", len(estimated_PTs) - len(mu_indexes), "\n")
-
     comp_win = int(len(mu_indexes) * 0.25)
 
     if comp_win < 3:
