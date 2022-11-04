@@ -24,7 +24,7 @@ The presenters:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MateusASchneiderCastilhos/EMG_Crosstalk_Decomposition_Workshop/blob/main/Decomposition_Panel.ipynb) To open the Decomposition Panel lauch this notebook.
 
-If you find an error or a bug, please contact Mateus Augusto Schneider Castilhos by this [e-mail adress](mailto:mateus.aschneider@gmail.com?subject=[EMG Workshop GitHub]%20Bug/error%20founded%20or%20Suggestions) or open an Issue. We will be glad to help you.
+If you find an error or a bug, please contact Mateus Augusto Schneider Castilhos by this [e-mail adress](mailto:mateus.aschneider@gmail.com?subject=[EMG%20Workshop%20GitHub]%20Bug/error%20founded%20or%20Suggestions) or open an Issue. We will be glad to help you.
 
 ## References
 
