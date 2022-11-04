@@ -12,5 +12,5 @@ The parameters used in the decomposition that generated these files are:
 
 There are two main files for each decomposition, the `...Decomposition_Results.mat` and `...Pulse_Trains_Metrics.csv`, where the three dots `...` indicates the name of the original HD sEMG file.
 
--The `...Decomposition_Results.mat` files are save in structured format that allows our MatLab functions (files are not in this repository) read them properly.
--The `...Pulse_Trains_Metrics.csv` files are structured as tables with columns being the quality and statistical metrics, and the columns been the motor units.
+- The `...Decomposition_Results.mat` files are save in structured format that allows our MatLab functions (files are not in this repository) read them properly.
+- The `...Pulse_Trains_Metrics.csv` files are structured as tables with columns being the quality and statistical metrics, and the columns been the motor units.
