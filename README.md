@@ -41,7 +41,7 @@ These notebooks were presented by Mateus Augusto Schneider Castilhos and are div
 
 2. The [**Decomposition_Panel.ipynb**](Decomposition_Panel.ipynb) is a notebook with all needed procedures for decomposing the HD sEMG already implemented and some widgets that improve the user experience with the code. This notebook was developed to train researchers and students to analyze the EMG signals, the motor units' spike trains (the result of the algorithm), and to choose some parameters of the algorithm.
 
-### Where can they be found?
+### Run they in Colab
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MateusASchneiderCastilhos/EMG_Crosstalk_Decomposition_Workshop/blob/main/EMG_Crosstalk_Decomposition_Workshop.ipynb) Open this notebook by signing in to your Google account to open it on Google Colab.
 
@@ -87,7 +87,7 @@ If you find an error or a bug, please contact Mateus Augusto Schneider Castilhos
 
 17. HOLOBAR, A.; ZAZULA, D. Multichannel Blind Source Separation Using Convolution Kernel Compensation. *IEEE Transactions on Signal Processing*, vol. 55, no. 9, p. 4487-4496, 2007. DOI: [10.1109/TSP.2007.896108](https://doi.org/10.1109/TSP.2007.896108).
 
-18. HOLOBAR, A.; ZAZULA, D. Gradient Convolution Kernel Compensation Applied to Surface Electromyograms. *Independent Component Analysis and Signal Separation*, ICA 2007. Lecture Notes in Computer Science, vol 4666, p. 617–624, 2007. DOI: [10.1007/978-3-540-74494-8_77](https://doi.org/10.1007/978-3-540-74494-8_77).
+18. HOLOBAR, A.; ZAZULA, D. Gradient Convolution Kernel Compensation Applied to Surface Electromyograms. *Independent Component Analysis and Signal Separation, ICA 2007. Lecture Notes in Computer Science*, vol 4666, p. 617–624, 2007. DOI: [10.1007/978-3-540-74494-8_77](https://doi.org/10.1007/978-3-540-74494-8_77).
 
 19. HUG, F.; AVRILLON, S.; DEL VECCHIO, A.; et al. Analysis of motor unit spike trains estimated from high-density surface electromyography is highly reliable across operators. *Journal of Electromyography and Kinesiology*, v. 58, p. 102548, 2021. DOI: [10.1016/j.jelekin.2021.102548](https://doi.org/10.1016/j.jelekin.2021.102548).
 
@@ -97,4 +97,5 @@ If you find an error or a bug, please contact Mateus Augusto Schneider Castilhos
 ## Funding
 
 Part of this project was funded by [CNPq](http://www.cnpq.br/) (Brazilian National Science Foundation): proc. no. 131390/2021-0.
+
 Part of this study was funded by [FAPESP](https://fapesp.br/) (São Paulo Research Foundation): proc. no. 2019/01508-4.
