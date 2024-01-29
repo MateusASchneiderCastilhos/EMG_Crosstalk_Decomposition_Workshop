@@ -84,7 +84,7 @@ def plot_sources_and_observations(x, y, var="sources", eigen=False, H=np.array([
         color=(0.9412, 0.3922, 0.3922, 0.8),
     )
 
-    if var == "observations" or len(var) > 12:
+    if var.lower() == "observations" or len(var) > 12:
 
         if var == "observations":
             main_ax.set_ylabel("$x_2$")
