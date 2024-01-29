@@ -13,7 +13,7 @@ color_scale = np.zeros(2)
 plt.rcParams["font.size"] = 12
 
 # Function to plot the source signals in time domain
-def plot_sources_time_domain(y1, y2, sampling_frequency=2048):
+def plot_sources_time_domain(y1, y2, title1, title2, sampling_frequency=2048):
     """
     Parameters
     ----------
@@ -34,6 +34,8 @@ def plot_sources_time_domain(y1, y2, sampling_frequency=2048):
     plt.plot(np.arange(y1.__len__()) / sampling_frequency, y1, color=(0.9412, 0.3922, 0.3922, 0.8))
     plt.xlabel("Time (s)")
     plt.ylabel("$s_1(t)$")
+    if title1 != '' :
+        plt.title(title1) 
     plt.show()
 
     # Plotting second source signal s_2
@@ -41,14 +43,17 @@ def plot_sources_time_domain(y1, y2, sampling_frequency=2048):
     plt.plot(np.arange(y2.__len__()) / sampling_frequency, y2, color=(0.3922, 2 * 0.3922, 1.0, 0.8))
     plt.xlabel("Time (s)")
     plt.ylabel("$s_2(t)$")
+    if title2 != '' :
+        plt.title(title2)
     plt.show()
 
     # Showing the user the mean and std of the source signals
-    print("\n\nMean s1 = ", round(y1.mean(), 3), "\t\tStd s1 = ", round(y1.std(ddof=1), 3)),
-    print("Mean s2 = ", round(y2.mean(), 3), "\t\tStd s2 = ", round(y2.std(ddof=1), 3), "\n\n\n")
+    print("\n\n\t Mean and Standard Deviation - Original Source Signals")
+    print("\tMean s1 = ", round(y1.mean(), 3), "\t\tStd s1 = ", round(y1.std(ddof=1), 3)),
+    print("\tMean s2 = ", round(y2.mean(), 3), "\t\tStd s2 = ", round(y2.std(ddof=1), 3), "\n\n\n")
 
 # Function to plot the joint PDF of the source or observation signals and their histograms
-def plot_sources_and_observations(x, y, var="sources", eigen=False, H=np.array([])):
+def plot_sources_and_observations(x, y, title, var="sources", eigen=False, H=np.array([])):
     """
     Parameters
     ----------
@@ -105,7 +110,10 @@ def plot_sources_and_observations(x, y, var="sources", eigen=False, H=np.array([
     # Verifyin the variable types to set the x and y axis labels
     if var.lower() == "observations" or len(var) > 12 or var.lower() != 'sources':
 
-        if len(var) > 12:
+        if var == "estimated sources":
+            main_ax.set_ylabel("$\hat{s}_2$")
+            main_ax.set_xlabel("$\hat{s}_1$")
+        elif len(var) > 12:
             tag = var[12:].replace(" ", "")
             tag = tag.replace("-", "\_")
             tag = tag.replace("_", "\_")
@@ -166,6 +174,10 @@ def plot_sources_and_observations(x, y, var="sources", eigen=False, H=np.array([
     else:
         main_ax.set_ylabel("$s_2$")
         main_ax.set_xlabel("$s_1$")
+
+    # Defining plot title
+    if title != '':
+        plt.title(title)
 
     # Defining the axis limits and labels
     y_hist.set_ylim(main_ax.get_ylim())
