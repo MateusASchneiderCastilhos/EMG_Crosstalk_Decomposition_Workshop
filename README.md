@@ -49,6 +49,12 @@ These notebooks were presented by Mateus Augusto Schneider Castilhos and are div
 
 If you find an error or a bug, please contact Mateus Augusto Schneider Castilhos by this [e-mail address](mailto:mateus.aschneider@gmail.com?subject=[EMG%20Workshop%20GitHub]%20Bug/error%20founded%20or%20Suggestions) or open an Issue. We will be glad to help you.
 
+## Funding
+
+Part of this project was funded by [CNPq](http://www.cnpq.br/) (Brazilian National Science Foundation): proc. no. 131390/2021-0.
+
+Part of this study was funded by [FAPESP](https://fapesp.br/) (São Paulo Research Foundation): proc. no. 2019/01508-4.
+
 ## References
 
 1. COMON, P. Independent component analysis, A new concept?. *Signal Processing*, v. 36, n. 3, p. 287–314, 1994. DOI: [10.1016/0165-1684(94)90029-9](https://doi.org/10.1016/0165-1684(94)90029-9).
@@ -85,17 +91,8 @@ If you find an error or a bug, please contact Mateus Augusto Schneider Castilhos
 
 16. HOLOBAR, A.; FARINA, D. Blind source identification from the multichannel surface electromyogram. *Physiological Measurement*, vol. 35, no. 7, p. R143--R165, 2014. DOI: [10.1088/0967-3334/35/7/R143](https://doi.org/10.1088/0967-3334/35/7/R143).
 
-17. HOLOBAR, A.; ZAZULA, D. Multichannel Blind Source Separation Using Convolution Kernel Compensation. *IEEE Transactions on Signal Processing*, vol. 55, no. 9, p. 4487-4496, 2007. DOI: [10.1109/TSP.2007.896108](https://doi.org/10.1109/TSP.2007.896108).
+17. HOLOBAR, A.; ZAZULA, D. Gradient Convolution Kernel Compensation Applied to Surface Electromyograms. *Independent Component Analysis and Signal Separation, ICA 2007. Lecture Notes in Computer Science*, vol 4666, p. 617–624, 2007. DOI: [10.1007/978-3-540-74494-8_77](https://doi.org/10.1007/978-3-540-74494-8_77).
 
-18. HOLOBAR, A.; ZAZULA, D. Gradient Convolution Kernel Compensation Applied to Surface Electromyograms. *Independent Component Analysis and Signal Separation, ICA 2007. Lecture Notes in Computer Science*, vol 4666, p. 617–624, 2007. DOI: [10.1007/978-3-540-74494-8_77](https://doi.org/10.1007/978-3-540-74494-8_77).
+18. HUG, F.; AVRILLON, S.; DEL VECCHIO, A.; et al. Analysis of motor unit spike trains estimated from high-density surface electromyography is highly reliable across operators. *Journal of Electromyography and Kinesiology*, v. 58, p. 102548, 2021. DOI: [10.1016/j.jelekin.2021.102548](https://doi.org/10.1016/j.jelekin.2021.102548).
 
-19. HUG, F.; AVRILLON, S.; DEL VECCHIO, A.; et al. Analysis of motor unit spike trains estimated from high-density surface electromyography is highly reliable across operators. *Journal of Electromyography and Kinesiology*, v. 58, p. 102548, 2021. DOI: [10.1016/j.jelekin.2021.102548](https://doi.org/10.1016/j.jelekin.2021.102548).
-
-20. MENG, L.; CHEN, Q.; JIANG, X.; et al. Evaluation of decomposition parameters for high-density surface electromyogram using fast independent component analysis algorithm. *Biomedical Signal Processing and Control*, v. 75, p. 103615, 2022. DOI: [10.1016/j.bspc.2022.103615](https://doi.org/10.1016/j.bspc.2022.103615).
-
-
-## Funding
-
-Part of this project was funded by [CNPq](http://www.cnpq.br/) (Brazilian National Science Foundation): proc. no. 131390/2021-0.
-
-Part of this study was funded by [FAPESP](https://fapesp.br/) (São Paulo Research Foundation): proc. no. 2019/01508-4.
+19. MENG, L.; CHEN, Q.; JIANG, X.; et al. Evaluation of decomposition parameters for high-density surface electromyogram using fast independent component analysis algorithm. *Biomedical Signal Processing and Control*, v. 75, p. 103615, 2022. DOI: [10.1016/j.bspc.2022.103615](https://doi.org/10.1016/j.bspc.2022.103615).
