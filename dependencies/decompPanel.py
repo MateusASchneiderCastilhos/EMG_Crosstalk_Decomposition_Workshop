@@ -1,511 +1,707 @@
+from scipy.stats import skew, kurtosis
+from scipy.signal import find_peaks
+from sklearn.cluster import KMeans
+
+from dependencies.utilities import Squared_CF, Log_CF, Skewness_CF, LogCosh_CF, ExpSquared_CF
+
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io as scio
+import ipywidgets as ipywi
+from IPython.display import display
 
+class Decomposition:
 
-# Initilaize global variable
-color_scale = np.zeros(2)
+    M = 150  # Number of iterations of the FastICA algorithm.
+    R = 10  # The extension factor value used to create delayed versions of the EMG signals.
+    max_iter = 50  # Number of iterations of the internal optimization loop.
+    Tolx = 0.023  # FastICA convergence threshold.
+    SIL = 90  # Silhouette threshold.
+    contrastF = 'x²'  # Chosen contrast function.
+    w_init = "Maximum"  # Chosen method of initialization of the separation vector.
+    z = np.array([], dtype=int) # Two-dimensional representing the whitened extended HD sEMG signals.
+    bad_channels = np.array([], dtype=int)  # One-dimensional array containing the channels numbers related to bad channels.
+    B = np.array([], dtype=int) # Separation Matrix.
+    Sil = np.array([], dtype=int)  # One-dimensional array containing the SIL values of the correspondent spike trains.
+    PNr = np.array([], dtype=int)  # One-dimensional array containing the PNR values of the correspondent spike trains.
+    extracted_PTs = np.array([], dtype=int)  # Two-dimensional binary array with rows indicating the i-th spike train.
 
-
-# Definig the font style to the required
-def config_plots():
-    plt.rcParams.update(
-        {
-            #   "axes.spines.top" : False,
-            #   "axes.spines.right" : False,
-            "font.size": 12,
-            #   "xtick.major.size" : 5,
-            #   "ytick.major.size" : 5,
-            #   'xtick.labelsize': "small",
-            #   'ytick.labelsize': "small",
-            #   'legend.fontsize': "small"
-        }
-    )
-
-
-def generate_sources(s1, s2):
-    global color_scale
-
-    color_scale = s1
-
-    print("Mean s1 = ", round(s1.mean(), 3), "\t\tStd s1 = ", round(s1.std(ddof=1), 3)),
-    print("Mean s2 = ", round(s2.mean(), 3), "\t\tStd s2 = ", round(s2.std(ddof=1), 3), "\n")
-
-
-def plot_sources_time_domain(y1, y2, sampling_frequency=2048):
-    plt.figure()
-    plt.plot(np.arange(y1.__len__()) / sampling_frequency, y1, color=(0.9412, 0.3922, 0.3922, 0.8))
-    plt.xlabel("Time (s)")
-    plt.ylabel("$s_1(t)$")
-    plt.show()
-
-    plt.figure()
-    plt.plot(np.arange(y2.__len__()) / sampling_frequency, y2, color=(0.3922, 2 * 0.3922, 1.0, 0.8))
-    plt.xlabel("Time (s)")
-    plt.ylabel("$s_2(t)$")
-    plt.show()
-
-
-def plot_sources_and_observations(x, y, var="sources", eigen=False, H=np.array([])):
-
-    # Plotting the Joint Distribuition of the sources
-    fig = plt.figure()
-    grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
-
-    plt.subplots_adjust(0.18, 0.16, 0.95, 0.95)
-
-    main_ax = fig.add_subplot(grid[1:, :-1])
-    y_hist = fig.add_subplot(grid[1:, -1], yticklabels=[])
-    x_hist = fig.add_subplot(grid[0, :-1], xticklabels=[])
-
-    x_left, x_right = x.min(), x.max()
-    y_bottom, y_top = y.min(), y.max()
-
-    main_ax.plot(np.array([x_left, x_right]), np.zeros(2), "k")
-    main_ax.plot(np.zeros(2), np.array([y_bottom, y_top]), "k")
-
-    main_ax.scatter(x, y, s=0.5, c=color_scale, cmap="rainbow")
-    y_hist.hist(
-        y,
-        100,
-        histtype="bar",
-        rwidth=0.8,
-        density=True,
-        orientation="horizontal",
-        color=(0.3922, 2 * 0.3922, 1.0, 0.8),
-    )
-    x_hist.hist(
-        x,
-        100,
-        histtype="bar",
-        rwidth=0.8,
-        density=True,
-        orientation="vertical",
-        color=(0.9412, 0.3922, 0.3922, 0.8),
-    )
-
-    if var.lower() == "observations" or len(var) > 12:
-
-        if var == "observations":
-            main_ax.set_ylabel("$x_2$")
-            main_ax.set_xlabel("$x_1$")
-        else:
-            tag = var[12:].replace(" ", "")
-            tag = tag.replace("-", "\_")
-            tag = tag.replace("_", "\_")
-            label = "$x_2^{" + tag + "}$"
-            main_ax.set_ylabel(label)
-            label = "$x_1^{" + tag + "}$"
-            main_ax.set_xlabel(label)
-
-        if eigen or H.shape[0] > 0:
-
-            if H.shape[0] > 0:
-                U = H
-                quiver_label1 = "$\\bf{h}_{1}$"
-                quiver_label2 = "$\\bf{h}_{2}$"
-
-            else:
-                Cxx = np.cov(np.array([x - np.mean(x), y - np.mean(y)]))
-                d, U = np.linalg.eig(Cxx)
-                quiver_label1 = "$\\bf{u}_{1}$"
-                quiver_label2 = "$\\bf{u}_{2}$"
-
-            origin = np.array([0, 0])
-
-            scale = max(abs(x_left), abs(x_right))
-            scale = max(scale, abs(y_bottom))
-            scale = max(scale, abs(y_top)) / 3
-            scale = max(abs(U[:, 0])) / scale
-
-            u1 = main_ax.quiver(*origin, *(U[:, 0]), color="r", scale_units="xy", scale=scale)
-            u2 = main_ax.quiver(*origin, *(U[:, 1]), color="b", scale_units="xy", scale=scale)
-
-            main_ax.quiverkey(
-                u1,
-                U[0, 0] / scale,
-                U[1, 0] / scale,
-                1,
-                quiver_label1,
-                labelpos="E",
-                coordinates="data",
-                visible=False,
-            )
-            main_ax.quiverkey(
-                u2,
-                U[0, 1] / scale,
-                U[1, 1] / scale,
-                1,
-                quiver_label2,
-                labelpos="E",
-                coordinates="data",
-                visible=False,
-            )
-
-    else:
-        main_ax.set_ylabel("$s_2$")
-        main_ax.set_xlabel("$s_1$")
-
-    y_hist.set_ylim(main_ax.get_ylim())
-    x_labels = y_hist.get_xticks()
-    x_labels = x_labels[:-1]
-    y_hist.set_xticks(x_labels)
-    y_hist.set_xticklabels(x_labels, rotation=30)
-    x_hist.set_xlim(main_ax.get_xlim())
-
-    plt.show()
-
-
-def import_Mat_file(filePath: str):
-
-    if filePath[-4:] != ".mat":
-
-        filePath = "".join([filePath, ".mat"])
-
-    matFile = scio.loadmat(filePath)
-
-    f_sampling = matFile["SamplingFrequency"][0, 0]
-
-    time_samples = matFile["Time"][0, 0].reshape(-1)
-
-    sEMG = matFile["Data"][0, 0]
-
-    if sEMG.shape[1] < sEMG.shape[0]:
-        sEMG = sEMG.T
-
-    return f_sampling, time_samples, sEMG
-
-
-class Skewness:
-    """Class that defines the Skweness function, G(w) = (w^4)/4, and its first and second derivatives.
-    Then it can be use as Cost Function in the Fixed Point Algorithm (fastICA).
-    """
-
-    @staticmethod
-    def g(w: np.ndarray) -> np.ndarray:
-        """First derivative of Skewness function
-        G(w) = (w^4)/4 -> dG(w)/dw = g(w) = w^3
-        Parameters
-        ----------
-            w ([float]): The i-th separation vector.
-        Returns
-        ----------
-            ([float]): The i-th separation vector with all elments being the squared of the original.
+    def __init__(self, sEMG, time_samples, f_sampling):
         """
-        return np.power(w, 3)
-
-    @staticmethod
-    def dg_dw(w: np.ndarray) -> np.ndarray:
-        """Second derivative of Skewness function
-        G(w) = (w^4)/4 -> d^2G(w)/dw^2 = dg(w)/dw = 3*w^2
-        Parameters
-        ----------
-            w ([float]): The i-th separation vector.
-        Returns
-        ----------
-            ([float]): The i-th separation vector with all elments being the twice the original.
-        """
-
-        return 3 * np.square(w)
-
-
-class LogCosh:
-    """Class that defines the Log Cosh function, G(w) = log(cosh(w)), and its first and second derivatives.
-    Then it can be use as Cost Function in the Fixed Point Algorithm (fastICA). Here is used the natural
-    logarithm, so the cost function becomes G(w) = ln(cosh(w)).
-    """
-
-    @staticmethod
-    def g(w: np.ndarray) -> np.ndarray:
-        """First derivative of Log Cosh function
-        G(w) = ln(cosh(w)) -> dG(w)/dw = g(w) = tanh(w)
-        Parameters
-        ----------
-            w ([float]): The i-th separation vector.
-        Returns
-        ----------
-            ([float]): The i-th separation vector with all elments being the hyperbolic tangent of the original elements.
-        """
-        # If is desired use logarithms in another base, by example, in base 10, then the return must be:
-        # return np.tanh(w) / np.log(10) # equals to np.tanh(w) / 2.302585092994046
-        return np.tanh(w) / 2.302585092994046
-        # return np.tanh(w)
-
-    @staticmethod
-    def dg_dw(w: np.ndarray) -> np.ndarray:
-        """Second derivative of Log Cosh function
-        G(w) = ln(cosh(w)) -> d^2G(w)/dw^2 = dg(w)/dw = sech^2(w) = 1 - tanh^2(w)
-        Parameters
-        ----------
-            w ([float]): The i-th separation vector.
-        Returns
-        ----------
-            ([float]): The i-th separation vector with all elments being the hyperbolic squared secant of the original elements.
-        """
-        # If is desired use logarithms in another base, by example, in base 10, then the return must be:
-        # return (1 - np.square(np.tanh(w))) / np.log(10)
-        return (1 - np.square(np.tanh(w))) / 2.302585092994046
-        # return (1 - np.square(np.tanh(w)))
-
-
-class ExpSquared:
-    """Class that defines the Exponetial of w squared function, G(w) = exp(-(w^2)/2), and its first and
-    second derivatives. Then it can be use as Cost Function in the Fixed Point Algorithm (fastICA).
-    """
-
-    @staticmethod
-    def g(w: np.ndarray) -> np.ndarray:
-        """First derivative of Exponetial of w squared function
-        G(w) = exp(-(w^2)/2) -> dG(w)/dw = g(w) = -exp(-(w^2)/2)*w
-        Parameters
-        ----------
-            w ([float]): The i-th separation vector.
-        Returns
-        ----------
-            ([float]): The i-th separation vector with all elments being the G(w) function
-            times the negative of the original elements.
-        """
-
-        return (-w) * np.exp((-1 / 2) * w * w)
-
-    @staticmethod
-    def dg_dw(w: np.ndarray) -> np.ndarray:
-        """Second derivative of Exponetial of w squared function
-        G(w) = exp(-(w^2)/2) -> d^2G(w)/dw^2 = dg(w)/dw = (exp(-(w^2)/2))*(w^2 - 1)
-        Parameters
-        ----------
-            w ([float]): The i-th separation vector.
-        Returns
-        ----------
-            ([float]): The i-th separation vector with all elments being the G(w) function
-            times the squared original elements minus 1.
-        """
-
-        return ((w * w) - 1) * np.exp((-1 / 2) * w * w)
-
-
-def fastICA(z: np.ndarray, M: int = 120, max_iter: int = 50, Tolx: float = 0.0001, cost: int = 1):
-    """
-    FastICA algorithm proposed by (Hyvärinen, Oja, 1997) and (Hyvärinen, 1999) to estimate the
-    projecction vector w. This algorithm is a fixed point algorithm with orthogonalization and
-    normalization steps, for a better estimation.
+    Initialization of the decomposition class with unchangeable variables.
 
     Parameters
     ----------
-        z ([[float]]): Whitened extended observation matrix.
-        M (int): Number of iterations of the whole algorithm (that is, the maximum number of possibly estimated sources).
-        max_iter (int): Maximum number of iterations that fastICA will run to find an estimated
-            separation vector on the i-th iteration of main FOR loop.
-        Tolx (float): The toleration or convergence criteria that sepration vectors from fastICA must
-            satisfy.
+    - sEMG (numpy.ndarray): Matrix containing the HD sEMG data. Rows represent EMG channels,
+                            and columns represent the sampled data.
+    - time_samples (numpy.ndarray): Array containing the time samples of the sEMG data.
+    - f_sampling (float): Sampling frequency of the spike train data.
 
     Returns
     ----------
-        ([float]): Array correspondig to current estimation of the projection vector.
-
+    - None
     """
+        
+        self.sEMG = sEMG
+        self.time_samples = time_samples
+        self.f_sampling = f_sampling
 
-    B: np.ndarray = np.zeros((z.shape[0], M), dtype=float)
-    BB: np.ndarray = 0 * np.identity(z.shape[0])
-
-    if cost == 1:
-        cf = Skewness
-    elif cost == 3:
-        cf = ExpSquared
-    else:
-        cf = LogCosh
-
-    for i in range(M):
-
+    def def_grid(self):
         """
-        1. Initialize the vector w_i(0) and w_i(-1) with unit norm
-        """
-        w_new = np.random.rand(z.shape[0])
-        vec_norm = np.linalg.norm(w_new)
-        if vec_norm > 0:
-            w_new /= vec_norm
+        This function takes the identification of the electrode matrix used during recording and
+        creates an array where each element corresponds spatially to the respective channel in
+        the electrode grid. For the pinout of the grids, refer to this link:
+        https://drive.google.com/file/d/1qddoypRMnP4R74OrSoXDmdO3SJUynQZk/view?usp=share_link
 
+        Parameters
+        ----------
+        - None.
+
+        Returns
+        ----------
+        - grid (numpy.ndarray): An array representing the spatial arrangement of electrodes in
+                                the grid.
         """
-                2. While |w_i(n)^{T}w_i(n - 1) - 1| > (0.0001 = Tolx)
-            """
+
+        aux = np.arange(60, 65, dtype=int) # Auxiliar array
+        
+        return np.array([aux, (aux - 5)[::-1], aux - 10, (aux - 15)[::-1], aux - 20, (aux - 25)[::-1],
+                        np.array([32, 31, 30, 33, 34], dtype=int), (aux - 35)[::-1], aux - 40,
+                        (aux - 45)[::-1], aux - 50, (aux - 55)[::-1], aux - 60], dtype=int)
+
+    def plot_channels(self, checked_channels):
+        """
+        This function plots the HD sEMG signals for channels checked in the matrix of checkboxes
+        generated by channels_selection() in widgets.py. Before plotting, the function computes
+        a scale factor based on the mean and standard deviation of the channels. This scale factor
+        rescales all HD sEMG signals to avoid overlapping curves in the plot.
+
+        Parameters
+        ----------
+        - checked_channels (dict): A dictionary mapping channel numbers to their respective checkboxes
+                                    provided by the checkboxes widgets.
+
+        Returns
+        ----------
+        - None
+        """
+        
+        averages = self.sEMG.mean(axis=1)
+
+        try:
+            indexes = np.unique(
+                np.array([np.argwhere(averages < averages.mean() + 3 * averages.std(ddof=1)).reshape(-1),
+                        np.argwhere(averages > averages.mean() - 3 * averages.std(ddof=1)).reshape(-1)]))
+            max_amp = 0
+            for i in self.sEMG[indexes, :]:
+                if abs(i.max() - i.min()) > max_amp:
+                    max_amp = abs(i.max() - i.min())
+            averages = self.sEMG * 2 / max_amp
+        except:
+            averages = self.sEMG / 3
+
+        channels = [int(ii.description) for ii in checked_channels.values() if ii.value]
+        channels = np.sort(np.array(channels).astype(int))
+
+        color_markers = plt.cm.gist_rainbow(np.linspace(0, 1, self.sEMG.shape[0]))
+        c_len = len(color_markers)
+
+        _, (lax, ax) = plt.subplots(figsize=(17, 15), nrows=2, gridspec_kw={"height_ratios": [1, 20]})
+
+        for i in channels:
+            ax.plot(self.time_samples, i + averages[i - 1, :], c=color_markers[int(i % c_len)], label="Ch " + str(i))
+
+        plt.suptitle('Selected HD sEMG Channels', fontsize=14)
+        plt.xlabel('Time (s)')
+        plt.ylabel('EMG Channel')
+
+        h, l = ax.get_legend_handles_labels()
+        lax.legend(h, l, loc='center', borderaxespad=0, ncol=8)
+        lax.axis("off")
+
+    def def_badChannels(self, checked_channels):
+        """
+        This function identifies channels that are not selected (checkbox not checked) and stores
+        their indexes. These bad channels need to be "saved" after the decomposition because we
+        need to know which channels were not considered for the decomposition procedure.
+
+        Parameters
+        ----------
+        - checked_channels (dict): A dictionary mapping channel numbers to their respective checkboxes.
+
+        Returns
+        ----------
+        - None.
+        """
+
+        selected_channels = [int(ii.description)-1 for ii in checked_channels.values() if ii.value]
+
+        if len(selected_channels) < self.sEMG.__len__(): 
+        
+            self.bad_channels = np.argwhere(np.isin(np.arange(self.sEMG.__len__(), dtype=int), np.sort(np.unique(selected_channels)).astype(int), invert=True)).reshape(-1)
+        
+        else:
+
+            self.bad_channels = np.array([], dtype=int)
+
+    def PT_metrics(self, s_i):
+        """
+        Calculate metrics for the quality of estimated sources.
+
+        Parameters
+        ----------
+        - s_i (numpy.ndarray): Estimated source signal.
+
+        Returns
+        ----------
+        - Tuple containing:
+            - MUs_timeInst (numpy.ndarray): Time instants of motor unit action potentials.
+            - SIL (float): Silhouette measure.
+            - PNR (float): Pulse-to-Noise Ratio.
+        """
+
+        within_cluster_sum = 1
+        betw_clusters_sum = 1
+        pnr_numerator = 1
+        pnr_denominator = 1
+
+        s_i_squared = s_i * s_i
+
+        peaks_timeInst, _ = find_peaks(s_i_squared, distance=20)
+
+        peaks_squared = s_i_squared[peaks_timeInst]
+
+        kmeans = KMeans(n_clusters=2, init="k-means++", max_iter=400, n_init=10).fit(peaks_squared.reshape(-1, 1))
+        centroids = kmeans.cluster_centers_
+        peaks_labels = kmeans.predict(peaks_squared.reshape(-1, 1))
+
+        MUs_timeInst = peaks_timeInst[peaks_labels == np.argmax(centroids).astype(int)]
+
+        MUs_timeInst = np.delete(MUs_timeInst, np.argwhere(s_i[MUs_timeInst] < 0).reshape(-1))
+
+        if MUs_timeInst.__len__() > 1:
+
+            if self.f_sampling / np.diff(MUs_timeInst).mean() > 2:
+
+                within_cluster_sum = 0
+                betw_clusters_sum = 0
+
+                # Getting the parameters to calculate the SIL score
+                for i in range(peaks_squared.__len__()):
+                    within_cluster_sum += np.linalg.norm(peaks_squared[i] - centroids[peaks_labels[i], 0])
+                    betw_clusters_sum += np.linalg.norm(peaks_squared[i] - centroids[1 - peaks_labels[i], 0])
+
+                # Computing the Pulse to Noise Ratio (PNR)
+                pnr_numerator = s_i_squared[MUs_timeInst].mean()
+                peaks_labels = np.delete(np.arange(s_i_squared.__len__(), dtype=int), MUs_timeInst)
+                pnr_denominator = s_i_squared[peaks_labels].mean()
+
+        return (
+            MUs_timeInst,
+            abs(within_cluster_sum - betw_clusters_sum) / max(within_cluster_sum, betw_clusters_sum),
+            10 * np.log10(pnr_numerator / pnr_denominator),
+        )
+
+    def decompose(self, m, r, maxIter, tolx, sil, contrast, wInit, channels):
+        """
+        FastICA-based decomposition algorithm to find motor units' spike trains.
+        The FastICA's parameters that are the function input are defined by the user using
+        a widget menu.
+
+        Parameters
+        ----------
+        - num_iterations (int): Number of iterations of the FastICA algorithm.
+        - extension_factor (int): Extension factor.
+        - max_internal_iterations (int): Number of internal optimization loop.
+        - convergence_threshold (float): Convergence threshold.
+        - silhouette_threshold (float): Silhouette threshold.
+        - selected_contrast (str): Selected contrast function.
+        - selected_initialization (str): Selected initialization method.
+        - channels: (float): Silhouette threshold.
+
+        Returns
+        ----------
+        - None
+        """
+
+        # Changing the decomposition parameters values
+        if m is not None:
+            self.M = m
+        if r is not None:
+            self.R = r
+        if maxIter is not None:
+            self.max_iter = maxIter
+        if tolx is not None:
+            self.Tolx = tolx
+        if sil is not None:
+            self.SIL = sil
+        if contrast is not None:
+            self.contrastF = contrast
+        if wInit is not None:
+            self.w_init = wInit
+    
+        # Creating a progress bar widget
+        progress_bar = ipywi.IntProgress(
+                value=0,
+                min=0,
+                max=self.M,
+                bar_style='success',
+                orientation='horizontal',
+            )
+        display(ipywi.HBox([progress_bar]))
+
+        # Copying to not modify the original EMG signals
+        self.z = np.copy(self.sEMG)
+
+        # Removing bad channels
+        self.def_badChannels(channels)
+        if self.bad_channels.__len__() > 0:
+            self.z = np.delete(self.z, self.bad_channels.reshape(-1), 0)
+            print("\nBad channels have been removed! New matrix shape: ", self.z.shape)
+        else:
+            print("\nNo bad channels to remove!")
+
+        # Initialization of variables
+        self.SIL /= 100
+        tolx = 1.0
+        vec_norm = 0.0
+        sil = 0.0
+        pnr = 0.0
         n = 0
-        while True and n < max_iter:
+        k_0 = 0
+        i = 0
+        j = 1
 
-            w_old = np.copy(w_new)
+        print("\nDecomposition total number of iterations: M = ", self.M)
+        print("\nExtension Factor: R = ", self.R)
+        print("\nFastICA maximum number of iterations: max_iter = ", self.max_iter)
 
-            """
-                    a. Fixed point algorithm
-                        w_i(n) = E{zg[w_i(n - 1)^{T}z]} - Aw_i(n - 1)
-                        with A = E{g'[w_i(n - 1)^{T}z]}
+        # Defining the method of separation vector
+        print("\nMethod of initialization of separation vector: "+self.w_init+"!")
+        if self.w_init == "Median":
+            vec_initi = 0.5
+        elif self.w_init == '81th Percentile':
+            vec_initi = 0.8135
+        else:
+            vec_initi = 0.9999
+
+        print("\nFastICA convergence tolerance: Tolx = ", self.Tolx)
+
+        # Defining the contrast function
+        print("\nDerivative of contrast function: g(x) = " + self.contrastF)
+        if self.contrastF == 'x²':
+            cf = Squared_CF
+        elif self.contrastF == 'x³':
+            cf = Skewness_CF
+        elif self.contrastF == '(-x) exp(-x² / 2)':
+            cf = ExpSquared_CF
+        elif self.contrastF == 'tanh(x)':
+            cf = LogCosh_CF
+        else:
+            cf = Log_CF
+
+        print("\nSilhouette threshold: SIL = ", self.SIL)
+
+        # Extension Procedure
+        m, D_r = self.z.shape
+        if self.R > 0:
+            # Auxiliary matrix that represents the new extended observation matrix
+            x_ = np.zeros((m * (self.R + 1), D_r - self.R))
+            # Constructing the extended m(R+1)x(Dr-R) matrix x(k)
+            for ch in range(m):
+                for r in range(self.R + 1):
+                    x_[ch * (self.R + 1) + r] = self.z[ch, self.R - r : D_r - r]
+            self.z = x_
+            print("\nObservations have been extended!")
+
+        # Centering the observations
+        self.z = self.z - self.z.mean(axis=1).reshape(len(self.z), 1)
+        print("\nObservations have been centered!")
+
+        # Whitening with regularization factor
+        d, U = np.linalg.eigh(np.cov(self.z))
+        D_gamma = np.diag(1 / np.sqrt(d + np.mean(d[: round(len(d) / 2)])))
+        W = np.dot(np.dot(U, D_gamma), U.T)
+        self.z = np.dot(W, self.z)
+        print("\nExtended observations have been whitened!")
+
+        # Calculating the Activity Index
+        indexes_gamma = np.argsort((self.z * self.z).sum(axis=0), axis=0, kind="mergesort")
+        len_gamma = indexes_gamma.__len__()
+
+        # Initialization of variables dependent on z extended
+        self.B = np.zeros((self.z.shape[0], self.M), dtype=float)
+        BB = 0 * np.identity(self.z.shape[0])
+        self.Sil = np.zeros(1, dtype=float)
+        self.PNr = np.zeros(1, dtype=float)
+        self.extracted_PTs = np.zeros((1, self.z.shape[1]), dtype=int)
+        indexes_sources = np.zeros(1, dtype=int)
+
+        print("\nDecomposing...")
+        for i in range(self.M):
+
+            if indexes_gamma.__len__() > 0:
+
+                if self.w_init == 'Random':
+                    vec_initi = np.random.rand(1)
+
+                k_0 = indexes_gamma[int(vec_initi * indexes_gamma.__len__())]
+
+                w_new = self.z[:, k_0]
+
                 """
-            s = np.dot(w_old, z)
-            w_new = (z * cf.g(s)).mean(axis=1) - cf.dg_dw(s).mean() * w_old
-
-            """
-                    b. Orthogonalization
-                        w_i(n) = w_i(n) - BB^{T}w_i(n)
+                FastICA
                 """
-            w_new -= np.dot(BB, w_new)
+                n = 0
+                tolx = self.Tolx + 1
 
-            """
-                    c. Normalization
-                        w_i(n) = w_i(n)/||w_i(n)||
-                """
-            vec_norm = np.linalg.norm(w_new)
-            if vec_norm > 0:
-                w_new /= vec_norm
+                vec_norm = np.linalg.norm(w_new)
+                if vec_norm > 0:
+                    w_new /= vec_norm
 
-            # Recalculate convergece criterion
-            tolx = np.absolute(np.dot(w_new, w_old) - 1)
+                while tolx > self.Tolx and n < self.max_iter:
 
-            if tolx <= Tolx:
+                    w_old = np.copy(w_new)
+
+                    s = np.dot(w_old, self.z)
+                    w_new = (self.z * cf.g(s)).mean(axis=1) - (cf.dg_dw(s).mean() * w_old)
+
+                    w_new -= np.dot(BB, w_new)
+
+                    vec_norm = np.linalg.norm(w_new)
+                    if vec_norm > 0:
+                        w_new /= vec_norm
+
+                    tolx = abs(np.dot(w_new, w_old) - 1)
+
+                    n += 1
+
+                self.B[:, i] = w_new
+                BB += np.dot(w_new.reshape(-1, 1), w_new.reshape(1, -1))
+
+                t_j, sil, pnr = self.PT_metrics(np.dot(w_new, self.z))
+
+                if sil >= self.SIL:
+                    indexes_sources = np.append(indexes_sources, i)
+                    pt = np.zeros((1, self.z.shape[1]))
+                    pt[0, t_j] = 1
+                    self.Sil = np.append(self.Sil, sil)
+                    self.PNr = np.append(self.PNr, pnr)
+                    self.extracted_PTs = np.append(self.extracted_PTs, pt, axis=0)
+                
+                t_aux = np.copy(t_j)
+
+                for j in range(1, self.R // 2 + 1):
+                    t_aux = np.append(t_aux, t_j - j)
+                    t_aux = np.append(t_aux, t_j + j)
+
+                if k_0 not in t_j:
+                    t_aux = np.append(t_aux, np.linspace(k_0 - self.R // 2, k_0 + self.R // 2, self.R + 1, dtype=int))
+
+                t_aux = t_aux[np.argwhere((t_aux >= 0) & (t_aux < len_gamma)).reshape(-1)]
+
+                indexes_gamma = np.delete(indexes_gamma, np.argwhere(np.isin(indexes_gamma, t_aux)).reshape(-1))
+
+                if progress_bar is not None:
+                    progress_bar.value += 1
+
+            else:
+
                 break
 
-            """
-                    d. Set n = n + 1
-                """
-            n += 1
+        
+        indexes_sources = np.delete(indexes_sources, obj=0)
+        self.Sil = np.delete(self.Sil, obj=0)
+        self.PNr = np.delete(self.PNr, obj=0)
+        self.extracted_PTs = np.delete(self.extracted_PTs, obj=0, axis=0)
 
-        B[:, i] = w_new
-        BB += np.dot(w_new.reshape(-1, 1), w_new.reshape(1, -1))
+        self.B = self.B[:, indexes_sources]
 
-    return B
+        # Correcting the initial samples removed in the extension procedure
+        self.z = np.hstack((np.zeros((self.z.shape[0], self.R), dtype=float), self.z))
+        self.extracted_PTs = np.hstack((np.zeros((self.extracted_PTs.__len__(), self.R), dtype=int), self.extracted_PTs))
+
+        print("\nFinished!\nEstimated Sources: ", self.extracted_PTs.shape[0])
+    
+    def compute_PTs_statistics(self):
+        """
+        This function uses the discharge times of the motor units to compute the interspike
+        inetervals (ISIs) of each estimated source. Then, using the values of ISIs for one
+        motor unit, this function computes the mean, standard deviation, CoV, skewness, and
+        kurtosis of the ISIs. If some spurious estimation occurs, i.e., if there is an
+        estimated source with fewer than 3 spikes, all these metrics are considered null,
+        and the finding_duplicates() function below removes these spurious motor units.
+
+        Parameters
+        ----------
+        - pts (numpy.ndarray): 2D array containing spike train data for each motor unit.
+
+        Returns
+        ----------
+        - Tuple of numpy.ndarray:
+            - cov_ (float): Coefficient of variation of the ISIs for each motor unit.
+            - mean_ (float): Mean of the ISIs for each motor unit.
+            - std_ (float): Standard deviation of the ISIs for each motor unit.
+            - skewness_ (float): Skewness of the ISIs for each motor unit.
+            - kurtosis_ (float): Kurtosis of the ISIs for each motor unit.
+        """
+
+        cov_ = np.zeros(self.extracted_PTs.shape[0], dtype=float)
+        mean_ = np.zeros(self.extracted_PTs.shape[0], dtype=float)
+        std_ = np.zeros(self.extracted_PTs.shape[0], dtype=float)
+        skewness_ = np.zeros(self.extracted_PTs.shape[0], dtype=float)
+        kurtosis_ = np.zeros(self.extracted_PTs.shape[0], dtype=float)
+
+        for i in range(self.extracted_PTs.shape[0]):
+            if np.count_nonzero(self.extracted_PTs[i, :]) >= 3:
+                isi = np.argwhere(self.extracted_PTs[i, :]).reshape(-1)
+                isi = np.diff(isi)
+                mean_[i] = np.mean(isi) / self.f_sampling
+                std_[i] = np.std(isi, ddof=1) / self.f_sampling
+                cov_[i] = std_[i] / mean_[i]
+                skewness_[i] = skew(isi)
+                kurtosis_[i] = kurtosis(isi)
+            else:
+                mean_[i] = 0
+                std_[i] = 0
+                cov_[i] = 0
+                skewness_[i] = 0
+                kurtosis_[i] = 0
+
+        return cov_, mean_, std_, skewness_, kurtosis_
+    
+    def display_statistics(self, CoV, Mean, Std, Skewness, Kurtosis):
+        """
+        Display the statistics of the interspike intervals (ISIs) in a formatted table.
+
+        Parameters
+        ----------
+        - CoV (numpy.ndarray): The coefficient of variation of the ISIs.
+        - Mean (numpy.ndarray): The mean of the ISIs.
+        - Std (numpy.ndarray): The standard deviation of the ISIs.
+        - Skewness (numpy.ndarray): The skewness of the ISIs.
+        - Kurtosis (numpy.ndarray): The kurtosis of the ISIs.
+
+        Returns
+        ----------
+        - None: The function prints the statistics as a formatted table.
+        """
+
+        print("{:<6} {:<14} {:<16} {:<15} {:<15} {:<10}".format("MU", "CoV (%)", "Mean (ms)", "Std (ms)", "Skewness", "Kurtosis"))
+        for i in range(CoV.shape[0]):
+            print("{}\t{:<10.3f}\t{:<10.3f}\t{:<10.3f}\t{:<10.3f}\t{:<10.3f}".format(i+1, CoV[i]*100, Mean[i]*1000, Std[i]*1000, Skewness[i], Kurtosis[i]))
+
+    def display_SIL_PNR(self):
+        """
+        Display the SIL score and the PNR value of the spike trains in a formatted table.
+
+        Parameters
+        ----------
+        - SIL (numpy.ndarray): The SIL score of the spike trains.
+        - PNR (numpy.ndarray): The PNR value of the spike trains.
+
+        Returns
+        ----------
+        - None: The function prints the statistics as a formatted table.
+        """
+
+        print("{:<7} {:<14} {:<10}".format("MU", "SIL (%)", "PNR (dB)"))
+        for i in range(self.Sil.shape[0]):
+            print("{}\t{:<10.3f}\t{:<10.3f}".format(i+1, self.Sil[i]*100, self.PNr[i]))
+        print("\n")
 
 
-def finding_duplicates(estimated_PTs, cov, sil, R, f_sampling):
+    ###### Defining a code to identify and remove repeated/duplicate source signals ######
+    ### The methdology below is out off the scope of this workshop, if you want to
+    #   know more about it, please contact mateus.aschneider@gmail.com using the subject
+    #   Decomposition Worshop - Finding Duplicates MUs                              ###
+    def finding_duplicates(self, cov):
+        """
+        Identify the indexes (MU numeber) of the spike train array that correspons to the repeated
+        (or duplicated) MU spike trains and and remove them from spike train array.
 
-    print("\nIdentifying and removing duplicated Pulse Trains...\n")
+        Returns the indexes of non-repeated MU spike trains and the pairs of MU numbers
+        that might be repeated MUs.
 
-    alpha = 0.5 * (R / 2) * f_sampling / 1000
+        The main idea of this function is to compare all possible combinations of pairs of spike
+        trains and identify if they are equal or not. To do this, the function delays and advances
+        one of the spike trains in a pre-defined time interval. This time interval is $\pm0.5$ ms
+        around each spike, as described in [(HOLOBAR et al., 2010)](#scrollTo=references). We used
+        an interval proportional to $R$, i.e., $\pm(R/2)$ ms, since we have performed the
+        extension procedure before. Then, it counts the number of common spikes between the two
+        analyzed spike trains. If the number of common spikes is greater or equal to 30% of the
+        total number of spikes of each individual spike train, then both are considered the same
+        source [(HOLOBAR et al., 2010)](#scrollTo=references). The spike train with the higher SIL
+        score is chosen as the "true" estimate.
 
-    alpha = int(alpha) if (alpha - int(alpha) < 0.5) else (int(alpha) + 1)
+        Parameters
+        ----------
+        - cov (numpy.ndarray): One dimensional array containing the CoV of the interspike intervals
+                               for each spike trains. The i-th CoV value corresponds to the i-th spike
+                               train.
+        
+        Returns
+        -------
+        - Tuple of numpy.ndarray:
+            - mu_indexes (numpy.ndarray): 1-D array of the indexes that corresponds to the non-repeated MUs.
+                                        Then, doing CoV[mu_indexes] the CoV of the interspike intervals of
+                                        non-repeated spike trains are obtained.
+            - possible_dup_MU (numpy.ndarray): 2-D array where each row is a pair or MUs that might be the
+                                            same MU (repeated). The array values are the MU numbers. If
+                                            possible_dup_MU - 1 is done it is obtained an array with the
+                                            indexes of possible repeated MUs, these indexes are contained
+                                            in mu_indexes.
+            - roa_matrix (numpy.ndarray): 2-D array where each i,j element corresponds to the RoA value between
+                                        the i-th and j-th MU. The Rate of Agreement (RoA) was proposed by
+                                        HOLOBAR, MINETTO and FARINA (2010). See: https://doi.org/10.1109/TNSRE.2010.2041593.
+        """
 
-    RoCD = (3 * (R**1.4) / 640) + 0.3
-    if RoCD > 0.8:
-        RoCD = 0.8
+        print("\nIdentifying and removing duplicated Pulse Trains...\n")
 
-    ###########################
-    #    First Identifying    #
-    ###########################
+        alpha = 0.5 * (self.R / 2) * self.f_sampling / 1000
 
-    not_MU_indexes = np.array([], dtype=int)
+        alpha = int(alpha) if (alpha - int(alpha) < 0.5) else (int(alpha) + 1)
 
-    n_spikes = np.count_nonzero(estimated_PTs, axis=1)
+        RoCD = (3 * (self.R**1.4) / 640) + 0.3
+        if RoCD > 0.8:
+            RoCD = 0.8
 
-    mu_indexes = np.argsort(n_spikes, kind="mergesort")
+        ###########################
+        #    First Identifying    #
+        ###########################
 
-    mu_indexes = np.delete(mu_indexes, np.argwhere(cov[mu_indexes] == 0).reshape(-1))
+        not_MU_indexes = np.array([], dtype=int)
 
-    comp_win = int(len(mu_indexes) * 0.25)
+        n_spikes = np.count_nonzero(self.extracted_PTs, axis=1)
 
-    if comp_win < 3:
-        comp_win = len(mu_indexes)
+        mu_indexes = np.argsort(n_spikes, kind="mergesort")
 
-    step = int(comp_win * 0.5)
+        mu_indexes = np.delete(mu_indexes, np.argwhere(cov[mu_indexes] == 0).reshape(-1))
 
-    for itera in range(int(len(mu_indexes) / step + 1) - 1):
+        interval_beg = len(mu_indexes) * 0.125
+        interval_beg = int(interval_beg) if (interval_beg - int(interval_beg) < 0.5) else (int(interval_beg) + 1)
+        interval_end = len(mu_indexes) * 0.875
+        interval_end = int(interval_end) if (interval_end - int(interval_end) < 0.5) else (int(interval_end) + 1)
+        mean_interval = n_spikes[mu_indexes[interval_beg:interval_end]].mean()
 
-        interval_beg = itera * step
-        interval_end = interval_beg + comp_win
+        mu_indexes = np.delete(mu_indexes, np.argwhere(n_spikes[mu_indexes] <= 0.05 * mean_interval).reshape(-1))
 
-        if interval_end > len(mu_indexes):
-            interval_end = len(mu_indexes)
-            interval_beg = interval_end - int(1.5 * step) - 1
+        print("\n\tPulse Trains considered outliers (removed): ", len(self.extracted_PTs) - len(mu_indexes), "\n")
 
-        indexes_to_analyse = mu_indexes[interval_beg:interval_end]
+        comp_win = int(len(mu_indexes) * 0.25)
 
-        pt = estimated_PTs[indexes_to_analyse, :]
+        if comp_win < 3:
+            comp_win = len(mu_indexes)
 
-        n_MUs, duration = pt.shape
+        step = int(comp_win * 0.5)
 
-        for i in range(n_MUs):
+        for itera in range(int(len(mu_indexes) / step + 1) - 1):
 
-            a_j = np.count_nonzero(pt[i, :])
+            interval_beg = itera * step
+            interval_end = interval_beg + comp_win
 
-            pt_aux = np.zeros((2 * alpha, duration), dtype=int)
+            if interval_end > len(mu_indexes):
+                interval_end = len(mu_indexes)
+                interval_beg = interval_end - int(1.5 * step) - 1
 
-            for count in range(alpha):
-                pt_aux[count, count + 1 :] = pt[i, : -count - 1]
-                pt_aux[count + alpha, : -count - 1] = pt[i, count + 1 :]
+            indexes_to_analyse = mu_indexes[interval_beg:interval_end]
 
-            pt_aux = pt_aux.sum(axis=0) + pt[i, :]
+            pt = self.extracted_PTs[indexes_to_analyse, :]
 
-            for j in range(i + 1, n_MUs):
+            n_MUs, duration = pt.shape
 
-                b_j = np.count_nonzero(pt[j, :])
+            for i in range(n_MUs):
 
-                c_j = np.count_nonzero((pt_aux + pt[j, :]) == 2)
+                a_j = np.count_nonzero(pt[i, :])
 
-                if (c_j / a_j) >= RoCD and (c_j / b_j) >= RoCD:
+                pt_aux = np.zeros((2 * alpha, duration), dtype=int)
 
-                    if sil[indexes_to_analyse[j]] > sil[indexes_to_analyse[i]]:
+                for count in range(alpha):
+                    pt_aux[count, count + 1 :] = pt[i, : -count - 1]
+                    pt_aux[count + alpha, : -count - 1] = pt[i, count + 1 :]
 
-                        not_MU_indexes = np.append(not_MU_indexes, indexes_to_analyse[i])
+                pt_aux = pt_aux.sum(axis=0) + pt[i, :]
 
-                    elif sil[indexes_to_analyse[j]] == sil[indexes_to_analyse[i]]:
+                for j in range(i + 1, n_MUs):
 
-                        if cov[indexes_to_analyse[j]] < cov[indexes_to_analyse[i]]:
+                    b_j = np.count_nonzero(pt[j, :])
+
+                    c_j = np.count_nonzero((pt_aux + pt[j, :]) == 2)
+
+                    if (c_j / a_j) >= RoCD and (c_j / b_j) >= RoCD:
+
+                        if self.Sil[indexes_to_analyse[j]] > self.Sil[indexes_to_analyse[i]]:
 
                             not_MU_indexes = np.append(not_MU_indexes, indexes_to_analyse[i])
+
+                        elif self.Sil[indexes_to_analyse[j]] == self.Sil[indexes_to_analyse[i]]:
+
+                            if cov[indexes_to_analyse[j]] < cov[indexes_to_analyse[i]]:
+
+                                not_MU_indexes = np.append(not_MU_indexes, indexes_to_analyse[i])
+
+                            else:
+
+                                not_MU_indexes = np.append(not_MU_indexes, indexes_to_analyse[j])
 
                         else:
 
                             not_MU_indexes = np.append(not_MU_indexes, indexes_to_analyse[j])
 
-                    else:
+                not_MU_indexes = np.unique(not_MU_indexes)
 
-                        not_MU_indexes = np.append(not_MU_indexes, indexes_to_analyse[j])
+        mu_indexes = mu_indexes[np.isin(mu_indexes, not_MU_indexes, invert=True)]
 
-            not_MU_indexes = np.unique(not_MU_indexes)
+        ############################
+        #    Second Identifying    #
+        ############################
 
-    mu_indexes = mu_indexes[np.isin(mu_indexes, not_MU_indexes, invert=True)]
+        not_MU_indexes = np.array([], dtype=int)
+        possible_dup_MU = np.zeros((1, 2), dtype=int)
 
-    ############################
-    #    Second Identifying    #
-    ############################
+        self.extracted_PTs = self.extracted_PTs[mu_indexes]
+        self.Sil = self.Sil[mu_indexes]
+        cov = cov[mu_indexes]
 
-    not_MU_indexes = np.array([], dtype=int)
-    possible_dup_MU = np.zeros((1, 2), dtype=int)
+        n_MUs, duration = self.extracted_PTs.shape
 
-    estimated_PTs = estimated_PTs[mu_indexes]
-    sil = sil[mu_indexes]
-    cov = cov[mu_indexes]
+        roa_matrix = np.zeros((n_MUs, n_MUs), dtype=float)
 
-    n_MUs, duration = estimated_PTs.shape
+        for i in range(n_MUs):
 
-    roa_matrix = np.zeros((n_MUs, n_MUs), dtype=float)
+            a_j = np.count_nonzero(self.extracted_PTs[i, :])
 
-    for i in range(n_MUs):
+            pt_aux = np.zeros((2 * alpha, duration), dtype=int)
 
-        a_j = np.count_nonzero(estimated_PTs[i, :])
+            for count in range(alpha):
+                pt_aux[count, count + 1 :] = self.extracted_PTs[i, : -count - 1]
+                pt_aux[count + alpha, : -count - 1] = self.extracted_PTs[i, count + 1 :]
 
-        pt_aux = np.zeros((2 * alpha, duration), dtype=int)
+            pt_aux = pt_aux.sum(axis=0) + self.extracted_PTs[i, :]
 
-        for count in range(alpha):
-            pt_aux[count, count + 1 :] = estimated_PTs[i, : -count - 1]
-            pt_aux[count + alpha, : -count - 1] = estimated_PTs[i, count + 1 :]
+            for j in range(i + 1, n_MUs):
 
-        pt_aux = pt_aux.sum(axis=0) + estimated_PTs[i, :]
+                b_j = np.count_nonzero(self.extracted_PTs[j, :])
 
-        for j in range(i + 1, n_MUs):
+                c_j = np.count_nonzero((pt_aux + self.extracted_PTs[j, :]) == 2)
 
-            b_j = np.count_nonzero(estimated_PTs[j, :])
+                roa_matrix[i, j] = (c_j * 100) / (a_j + b_j - c_j)
 
-            c_j = np.count_nonzero((pt_aux + estimated_PTs[j, :]) == 2)
+                if (c_j / a_j) >= RoCD and (c_j / b_j) >= RoCD:
 
-            roa_matrix[i, j] = (c_j * 100) / (a_j + b_j - c_j)
-
-            if (c_j / a_j) >= RoCD and (c_j / b_j) >= RoCD:
-
-                if sil[j] > sil[i]:
-
-                    not_MU_indexes = np.append(not_MU_indexes, i)
-
-                elif sil[j] == sil[i]:
-
-                    if cov[j] < cov[i]:
+                    if self.Sil[j] > self.Sil[i]:
 
                         not_MU_indexes = np.append(not_MU_indexes, i)
+
+                    elif self.Sil[j] == self.Sil[i]:
+
+                        if cov[j] < cov[i]:
+
+                            not_MU_indexes = np.append(not_MU_indexes, i)
+
+                        else:
+
+                            not_MU_indexes = np.append(not_MU_indexes, j)
 
                     else:
 
@@ -513,41 +709,177 @@ def finding_duplicates(estimated_PTs, cov, sil, R, f_sampling):
 
                 else:
 
-                    not_MU_indexes = np.append(not_MU_indexes, j)
+                    if (c_j / a_j) >= 0.15 and (c_j / b_j) >= 0.2:
 
-            else:
+                        possible_dup_MU = np.append(possible_dup_MU, mu_indexes[[i, j]].reshape(1, -1), axis=0)
 
-                if (c_j / a_j) >= 0.15 and (c_j / b_j) >= 0.2:
+            not_MU_indexes = np.unique(not_MU_indexes)
 
-                    possible_dup_MU = np.append(possible_dup_MU, mu_indexes[[i, j]].reshape(1, -1), axis=0)
+        if len(not_MU_indexes) > 0:
 
-        not_MU_indexes = np.unique(not_MU_indexes)
+            mu_indexes = np.delete(mu_indexes, not_MU_indexes)
+            self.extracted_PTs = np.delete(self.extracted_PTs, not_MU_indexes, axis=0)
+            self.B = self.B[:, mu_indexes]
+            self.Sil = self.Sil[mu_indexes]
 
-    if len(not_MU_indexes) > 0:
+        possible_dup_MU = np.delete(possible_dup_MU, 0, axis=0)
+        possible_dup_MU = np.delete(
+            possible_dup_MU, np.argwhere(np.isin(possible_dup_MU, mu_indexes, invert=True))[:, 0], axis=0
+        )
 
-        mu_indexes = np.delete(mu_indexes, not_MU_indexes)
-        estimated_PTs = np.delete(estimated_PTs, not_MU_indexes, axis=0)
+        if len(possible_dup_MU) > 0:
 
-    possible_dup_MU = np.delete(possible_dup_MU, 0, axis=0)
-    possible_dup_MU = np.delete(
-        possible_dup_MU, np.argwhere(np.isin(possible_dup_MU, mu_indexes, invert=True))[:, 0], axis=0
-    )
+            for i in range(len(possible_dup_MU)):
+                possible_dup_MU[i, :] = np.argwhere(np.isin(mu_indexes, possible_dup_MU[i, :])).reshape(-1)
 
-    if len(possible_dup_MU) > 0:
+            possible_dup_MU = 1 + np.sort(possible_dup_MU, axis=1)
 
-        for i in range(len(possible_dup_MU)):
-            possible_dup_MU[i, :] = np.argwhere(np.isin(mu_indexes, possible_dup_MU[i, :])).reshape(-1)
+        roa_matrix = np.delete(roa_matrix, not_MU_indexes, axis=1)
 
-        possible_dup_MU = 1 + np.sort(possible_dup_MU, axis=1)
+        roa_matrix = np.delete(roa_matrix, not_MU_indexes, axis=0)
 
-    roa_matrix = np.delete(roa_matrix, not_MU_indexes, axis=1)
+        roa_matrix += roa_matrix.T
 
-    roa_matrix = np.delete(roa_matrix, not_MU_indexes, axis=0)
+        print("\n\tPulse Trains considered duplicated (removed): ", len(n_spikes) - len(mu_indexes), "\n")
+        print("\n\tUnique Pulse Trains: ", len(mu_indexes), "\n")
+        print("\n\tPossible Remained Duplicated MUs: \n", possible_dup_MU, "\n")
 
-    roa_matrix += roa_matrix.T
+        return mu_indexes, possible_dup_MU, roa_matrix
+    
+    def updating_metrics(self, CoV, Mean, Std, Skewness, Kurtosis, unique_MUs_indexes):
+        """
+        Update metrics based on unique motor units indexes.
 
-    print("\n\tPulse Trains considered duplicated (removed): ", len(n_spikes) - len(mu_indexes), "\n")
-    print("\n\tUnique Pulse Trains: ", len(mu_indexes), "\n")
-    print("\n\tPossible Remained Duplicated MUs: ", possible_dup_MU, "\n")
+        Parameters
+        -------
+        - CoV (numpy.ndarray): Coefficient of variation of the ISIs for each motor unit.
+        - Mean (numpy.ndarray): Mean of the ISIs for each motor unit.
+        - Std (numpy.ndarray): Standard deviation of the ISIs for each motor unit.
+        - Skewness (numpy.ndarray): Skewness of the ISIs for each motor unit.
+        - Kurtosis (numpy.ndarray): Kurtosis of the ISIs for each motor unit.
+        - unique_MUs_indexes (numpy.ndarray): Indexes of unique motor units to update the metrics.
 
-    return mu_indexes, estimated_PTs, possible_dup_MU, roa_matrix
+        Returns
+        -------
+        - Tuple of numpy.ndarray:
+            - CoV (numpy.ndarray): Updated coefficient of variation of the ISIs for each motor unit.
+            - Mean (numpy.ndarray): Updated mean of the ISIs for each motor unit.
+            - Std (numpy.ndarray): Updated standard deviation of the ISIs for each motor unit.
+            - Skewness (numpy.ndarray): Updated skewness of the ISIs for each motor unit.
+            - Kurtosis (numpy.ndarray): Updated kurtosis of the ISIs for each motor unit.
+        """
+
+        self.PNr = self.PNr[unique_MUs_indexes]
+        
+        return CoV[unique_MUs_indexes], Mean[unique_MUs_indexes], Std[unique_MUs_indexes], Skewness[unique_MUs_indexes], Kurtosis[unique_MUs_indexes]
+
+    def plot_spikes(self):
+        """
+        Plots motor unit spike trains.
+
+        Parameters
+        ----------
+        - None
+
+        Returns
+        ----------
+        - None
+        """
+
+        # Generate a range of color markers based on the number of spike trains
+        color_markers = plt.cm.gist_rainbow(np.linspace(0, 1, self.extracted_PTs.shape[0]))
+        c_len = len(color_markers)
+
+        # Create a figure with two subplots (spike trains and legend)
+        _, (lax, ax) = plt.subplots(figsize=(17, 15), nrows=2, gridspec_kw={"height_ratios": [1, 20]})
+
+        # Plot each motor unit's spike train
+        for i in range(self.extracted_PTs.shape[0]):
+            ax.plot(self.time_samples, i + 0.55 + (0.9 * self.extracted_PTs[i, :]), c=color_markers[int(i % c_len)], label="MU " + str(i + 1))
+
+        # Customize main plot
+        plt.suptitle('Motor Unit Spike Trains', fontsize=14)
+        plt.xlabel('Time (s)')
+        plt.ylabel('MU number')
+
+        # Customize legend subplot
+        h, l = ax.get_legend_handles_labels()
+        lax.legend(h, l, loc='center', borderaxespad=0, ncol=6, bbox_to_anchor=(0.5, 0))
+        lax.axis("off")  # Corrected axis("off") to turn off the axis on the legend subplot
+
+    def save_decom_outputs(self, CoV, Mean, Std, Skewness, Kurtosis):
+        """
+        Saves decomposition outputs, spike train statistics, and relevant data in different formats.
+
+        Parameters
+        ----------
+        - CoV (numpy.ndarray): Coefficient of Variation of the ISIs for each motor unit.
+        - Mean (numpy.ndarray): Mean of the ISIs for each motor unit.
+        - Std (numpy.ndarray): Standard deviation of the ISIs for each motor unit.
+        - Skewness (numpy.ndarray): Skewness of the ISIs for each motor unit.
+        - Kurtosis (numpy.ndarray): Kurtosis of the ISIs for each motor unit.
+
+        Returns
+        ----------
+        - None
+        """
+    
+        # Creating a table with the spike train statistics to be saved as a .csv file
+        csv_header = np.array(["MU #", "Sil (%)", "PNR (dB)", "DR (Hz)", "CoV_isi (%)", "Mean_isi (ms)", "StD_isi (ms)", "Skewness_isi", "Kurtosis_isi", "Nº spikes"], dtype=object)
+        dataFrame = np.array(
+            [np.arange(len(self.extracted_PTs)) + 1,
+            100 * self.Sil,  # SIL measures in percentage
+            self.PNr,  # PNR values
+            1 / Mean,  # Mean discharge rate
+            100 * CoV,  # Coefficient of Variation (CoV) of ISIs in percentage
+            1000 * Mean,  # Mean ISI in milliseconds
+            1000 * Std,  # Standard deviation of ISI in milliseconds
+            Skewness,  # Skewness of ISI
+            Kurtosis,  # Kurtosis of ISI
+            np.count_nonzero(self.extracted_PTs, axis=1)],  # Number of spikes for each estimated spike train
+            dtype=object,
+        )
+        dataFrame = np.append(csv_header.reshape(1, -1), dataFrame.T, axis=0)
+
+        np.savetxt(
+            "Spike_Trains_Metrics.csv",
+            dataFrame,
+            delimiter=";",
+            fmt="%s",
+        )
+
+        # Creating a dictionary with all the needed data for DEMUSE
+        s = np.dot(self.B.T, self.z)
+        numberOfIPTs, duration = s.shape
+
+        trigger = np.ones(duration, dtype=int)
+
+        my_data = self.extracted_PTs.T
+        my_data = np.append(my_data, s.T, axis=1)  # Adding the results of decomposition to the spike trains
+        my_data = np.append(my_data, self.sEMG.T, axis=1)  # Adding original HD sEMG signals
+        my_data = np.append(my_data, trigger.reshape(-1, 1), axis=1)  # Adding trigger signal
+
+        mdic1 = {
+            "Data": my_data,
+            "Time": self.time_samples.reshape(-1, 1),
+            "PNR": self.PNr.reshape(-1, 1),
+            "NumberOfIPTs": numberOfIPTs,
+            "SamplingFrequency": self.f_sampling,
+            "BadChannels": self.bad_channels + 1,  # Incrementing by 1 to match MATLAB indexing
+        }
+
+        scio.savemat(
+            "My_Results_Decomposition.mat",
+            mdic1,
+        )
+
+        # Creating a dictionary to store the whitened extended observation matrix and the separation matrix
+        mdic2 = {
+            "SeparationMatrix": self.B.T,
+            "WhitenedExtendedObservations": self.z.T,
+        }
+
+        scio.savemat(
+            "Separation_and_Z_Matrices.mat",
+            mdic2,
+        )
