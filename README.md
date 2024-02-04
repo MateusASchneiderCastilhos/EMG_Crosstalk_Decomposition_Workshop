@@ -35,7 +35,7 @@ Don't worry! You can still use it; it will be a little challenging, but as Angel
 
 ### What are the objectives of these notebooks?
 
-These notebooks were presented by Mateus Augusto Schneider Castilhos and are divided into:
+These notebooks are divided into:
 
 1. The [**EMG_Crosstalk_Decomposition_Workshop.ipynb**](EMG_Crosstalk_Decomposition_Workshop.ipynb) is a didactic notebook that briefly explains the main concepts used to decompose the HD sEMG signals using the FastICA algorithm. These concepts include Blind Source Separation, Principal Component Analysis (PCA) and Whitening, Independent Component Analysis (ICA), and the FastICA algorithm based on concepts of Information Theory such as negative entropy and mutual information. Additionally, this notebook contains several images that make it easier to understand the techniques behind the scenes and code cells that allow the user to interact and practice.
 
