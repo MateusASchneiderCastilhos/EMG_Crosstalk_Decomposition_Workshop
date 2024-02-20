@@ -17,7 +17,7 @@ The presenters:
 - [Carina Marconi Germer](http://lattes.cnpq.br/8205284377032041)
 - [Mateus Augusto Schneider Castilhos](http://lattes.cnpq.br/0955125190662270)
 - [Ellen Pereira Zambalde](http://lattes.cnpq.br/0063193464498205)
-- [Leonardo Abdala Elias](http://lattes.cnpq.br/5429275286295501)
+- [Leonardo Abdala Elias](https://orcid.org/0000-0003-4488-3063)
 
 ### Who can use these notebooks?
 
