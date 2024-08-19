@@ -14,9 +14,9 @@ These notebooks were developed to teach how Principal Component Analysis (PCA) a
 
 The presenters:
 
-- [Carina Marconi Germer](http://lattes.cnpq.br/8205284377032041)
-- [Mateus Augusto Schneider Castilhos](http://lattes.cnpq.br/0955125190662270)
-- [Ellen Pereira Zambalde](http://lattes.cnpq.br/0063193464498205)
+- [Carina Marconi Germer](https://orcid.org/0000-0002-7323-3767)
+- [Mateus Augusto Schneider Castilhos](https://orcid.org/0000-0003-2979-5305)
+- [Ellen Pereira Zambalde](https://orcid.org/0000-0002-0877-3062)
 - [Leonardo Abdala Elias](https://orcid.org/0000-0003-4488-3063)
 
 ### Who can use these notebooks?
